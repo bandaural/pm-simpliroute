@@ -37,6 +37,9 @@
   #header p { color: #8F95B2; font-size: 13px; margin-top: 4px; }
   .btn-export { background: #6C5DD3; color: white; border: none; border-radius: 8px; padding: 8px 18px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
   .btn-export:hover { background: #5b4dc0; }
+  .table-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+  .btn-export-table { background: #EEF0FF; color: #6C5DD3; border: 1px solid #D9D5FF; border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; white-space: nowrap; }
+  .btn-export-table:hover { background: #E0DEFF; }
 
   /* Tabs */
   #tabs { display: flex; }
@@ -188,7 +191,6 @@
         <h1>Encuesta de satisfacción de entrega</h1>
         <p>Configura y personaliza la encuesta que recibirá tu cliente después de cada entrega</p>
       </div>
-      <button class="btn-export" id="export-btn" style="display:none">↓ Exportar CSV</button>
     </div>
     <div id="tabs">
       <button class="tab" onclick="switchTab('config')">Configuración</button>
@@ -269,8 +271,13 @@
     <!-- Table card -->
     <div class="table-card">
       <div class="table-header">
-        <div class="table-title">Respuestas</div>
-        <div class="table-subtitle" id="resultCount">10 resultados</div>
+        <div class="table-head-row">
+          <div>
+            <div class="table-title">Respuestas</div>
+            <div class="table-subtitle" id="resultCount">10 resultados</div>
+          </div>
+          <button class="btn-export-table" type="button" onclick="downloadResponsesExcel()">↓ Descargar Excel</button>
+        </div>
         <div class="chips">
           <button class="chip active-all" data-filter="all"   onclick="setFilter('all')">Todas <span class="chip-count">10</span></button>
           <button class="chip"            data-filter="bad"   onclick="setFilter('bad')">Malas (1–2) <span class="chip-count">4</span></button>
@@ -344,11 +351,10 @@ function switchTab(tab) {
   document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
   const content = document.getElementById('content');
   const config  = document.getElementById('config-placeholder');
-  const exportBtn = document.getElementById('export-btn');
   if (tab === 'results') {
-    content.classList.add('active'); config.classList.remove('active'); exportBtn.style.display = 'flex';
+    content.classList.add('active'); config.classList.remove('active');
   } else {
-    content.classList.remove('active'); config.classList.add('active'); exportBtn.style.display = 'none';
+    content.classList.remove('active'); config.classList.add('active');
   }
 }
 
@@ -362,6 +368,15 @@ function scoreBadge(score) {
 /* ── Table rendering ── */
 let currentFilter = 'all';
 
+function getFilteredResponses() {
+  return responses.filter(r => {
+    if (currentFilter === 'bad') return r.csat <= 2;
+    if (currentFilter === 'mid') return r.csat === 3;
+    if (currentFilter === 'good') return r.csat >= 4;
+    return true;
+  });
+}
+
 function setFilter(filter) {
   currentFilter = filter;
   document.querySelectorAll('.chip').forEach(c => {
@@ -372,12 +387,7 @@ function setFilter(filter) {
 }
 
 function renderTable() {
-  const filtered = responses.filter(r => {
-    if (currentFilter === 'bad')  return r.csat <= 2;
-    if (currentFilter === 'mid')  return r.csat === 3;
-    if (currentFilter === 'good') return r.csat >= 4;
-    return true;
-  });
+  const filtered = getFilteredResponses();
   document.getElementById('resultCount').textContent = `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}`;
   const tbody = document.getElementById('tableBody');
   if (filtered.length === 0) {
@@ -397,6 +407,31 @@ function renderTable() {
       <td><button class="btn-detail" onclick="openModal(${r.id})">Ver detalle</button></td>
     </tr>
   `).join('');
+}
+
+function downloadResponsesExcel() {
+  const filtered = getFilteredResponses();
+  const headers = ['Visita', 'Conductor', 'Fecha visita', 'Fecha respuesta', 'Evaluación CSAT', 'Respuesta adicional'];
+  const rows = filtered.map(r => [
+    r.visitTitle,
+    r.driver,
+    r.visitDate,
+    r.responseDate,
+    `${r.csat}/5`,
+    r.additionals[0]?.value ?? '—'
+  ]);
+  const content = [headers, ...rows]
+    .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join('\t'))
+    .join('\n');
+  const blob = new Blob([content], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'respuestas-encuesta.xls';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 /* ── Modal ── */

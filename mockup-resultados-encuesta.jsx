@@ -309,6 +309,30 @@ export default function MockupResultados(){
     return true;
   });
 
+  function handleDummyExcelDownload() {
+    const headers = ["Visita", "Conductor", "Fecha visita", "Fecha respuesta", "Evaluación CSAT", "Respuesta adicional"];
+    const rows = filteredResponses.map(r => [
+      r.visitTitle,
+      r.driver,
+      r.visitDate,
+      r.responseDate,
+      `${r.csat}/5`,
+      r.additionals[0]?.value ?? "—",
+    ]);
+    const content = [headers, ...rows]
+      .map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join("\t"))
+      .join("\n");
+    const blob = new Blob([content], { type:"application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "respuestas-encuesta.xls";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const TABLE_COLS = ["Visita","Fecha visita","Fecha respuesta","Evaluación","Respuesta adicional",""];
 
   return (
@@ -359,11 +383,6 @@ export default function MockupResultados(){
               <h1 style={{ margin:0, fontSize:20, fontWeight:700, color:TEXT_MAIN }}>Encuesta de satisfacción de entrega</h1>
               <p style={{ margin:"4px 0 0", color:TEXT_MUTED, fontSize:13 }}>Configura y personaliza la encuesta que recibirá tu cliente después de cada entrega</p>
             </div>
-            {activeTab==="resultados"&&(
-              <button style={{ background:ACCENT, color:"white", border:"none", borderRadius:8, padding:"8px 18px", fontWeight:600, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-                ↓ Exportar CSV
-              </button>
-            )}
           </div>
           <div style={{ display:"flex" }}>
             {["configuracion","resultados"].map(tab=>{
@@ -443,6 +462,9 @@ export default function MockupResultados(){
                     <h3 style={{ margin:0,fontSize:14,fontWeight:700,color:TEXT_MAIN }}>Respuestas</h3>
                     <p style={{ margin:"2px 0 0",fontSize:12,color:TEXT_MUTED }}>{filteredResponses.length} resultado{filteredResponses.length!==1?"s":""}</p>
                   </div>
+                  <button onClick={handleDummyExcelDownload} style={{ background:ACCENT_LIGHT, color:ACCENT, border:`1px solid #D9D5FF`, borderRadius:8, padding:"8px 14px", fontWeight:600, fontSize:12, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
+                    ↓ Descargar Excel
+                  </button>
                 </div>
 
                 {/* Filter chips */}
